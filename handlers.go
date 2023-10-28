@@ -10,24 +10,7 @@ import (
 	 _ "github.com/mattn/go-sqlite3"
 )
 
-func postForm(w http.ResponseWriter, r *http.Request) {
-	formHTML := `
-	<!DOCTYPE html>
-	<html>
-	<head>
-	    <title>ブログ投稿</title>
-	</head>
-	<body>
-	    <h1>新しいブログ記事を投稿</h1>
-	    <form action="/submit-post" method="post">
-	        <div>Title: <input type="text" name="title"></div>
-	        <div>Content: <textarea name="content"></textarea></div>
-	        <div><input type="submit" value="投稿"></div>
-	    </form>
-	</body>
-	</html>`
-	w.Write([]byte(formHTML))
-}
+
 
 
 func setupDatabase() {
@@ -47,6 +30,72 @@ func setupDatabase() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+
+func viewPosts(w http.ResponseWriter, r *http.Request) {
+	// クエリパラメータからメッセージを取得
+	message := r.URL.Query().Get("message")
+
+    db, err := sql.Open("sqlite3", "./blog.db")
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return
+    }
+    defer db.Close()
+
+	// メッセージを表示
+	if message != "" {
+		fmt.Fprintf(w, "<p>%s</p>", message)
+	}
+
+    rows, err := db.Query("SELECT title, content FROM posts")
+    if err != nil {
+        http.Error(w, "Failed to retrieve posts", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
+
+    var posts []struct {
+        Title   string
+        Content string
+    }
+    for rows.Next() {
+        var title string
+        var content string
+        err = rows.Scan(&title, &content)
+        if err != nil {
+            http.Error(w, "Failed to read post", http.StatusInternalServerError)
+            return
+        }
+        posts = append(posts, struct {
+            Title   string
+            Content string
+        }{Title: title, Content: content})
+    }
+
+    tmpl, err := template.ParseFiles("templates/base.html", "templates/view_posts.html")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    data := struct {
+        Title string
+        Posts []struct {
+            Title   string
+            Content string
+        }
+    }{
+        Title: "ブログ投稿一覧",
+        Posts: posts,
+    }
+
+    err = tmpl.ExecuteTemplate(w, "base", data)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 }
 
 
@@ -72,20 +121,21 @@ func submitPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("ブログ記事を投稿しました!"))
+    // リダイレクト先とメッセージをクエリパラメータとして設定
+	http.Redirect(w, r, "/view?message=ブログを投稿しました", http.StatusSeeOther)
 }
 
 
 func uploadForm(w http.ResponseWriter, r *http.Request) {
-	// HTMLフォームを読み込む
-	tmpl, err := template.ParseFiles("upload_form.html")
+	// ベーステンプレートを読み込み
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/upload_form.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// フォームをレンダリング
-	err = tmpl.Execute(w, nil)
+	// フォームをレンダリング（upload_form.html を呼び出す）
+	err = tmpl.ExecuteTemplate(w, "base", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -122,33 +172,4 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ファイル %s がアップロードされました。", handler.Filename)
 }
 
-func viewPosts(w http.ResponseWriter, r *http.Request) {
-	db, err := sql.Open("sqlite3", "./blog.db")
-	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	rows, err := db.Query("SELECT title, content FROM posts")
-	if err != nil {
-		http.Error(w, "Failed to retrieve posts", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	postsHTML := "<h1>ブログ投稿一覧</h1>"
-	for rows.Next() {
-		var title string
-		var content string
-		err = rows.Scan(&title, &content)
-		if err != nil {
-			http.Error(w, "Failed to read post", http.StatusInternalServerError)
-			return
-		}
-		postsHTML += "<h2>" + title + "</h2><p>" + content + "</p><hr>"
-	}
-
-	w.Write([]byte(postsHTML))
-}
 

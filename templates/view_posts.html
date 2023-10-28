@@ -1,0 +1,14 @@
+{{define "content"}}
+<div class="container mt-5">
+    <h1>ブログ投稿一覧</h1>
+    {{range .Posts}}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="card-title">{{.Title}}</h2>
+                <p class="card-text">{{.Content}}</p>
+            </div>
+        </div>
+    {{end}}
+</div>
+{{end}}
+

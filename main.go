@@ -6,11 +6,11 @@ import (
 )
 
 func main() {
-	setupDatabase() // データベースのセットアップ
-	http.HandleFunc("/", postForm)
+	setupDatabase()
+
+	http.HandleFunc("/", uploadForm)
+	http.HandleFunc("/view", viewPosts)
 	http.HandleFunc("/submit-post", submitPost)
-	http.HandleFunc("/upload", uploadFile)
-	http.HandleFunc("/view-posts", viewPosts)
 	fmt.Println("サーバーを起動しています...")
 	http.ListenAndServe(":8080", nil)
 }
