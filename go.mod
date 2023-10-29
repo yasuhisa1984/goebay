@@ -1,4 +1,4 @@
-module example.com/myblog
+module example.com/goyasu
 
 go 1.16
 

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -11,33 +11,11 @@ import (
 )
 
 
-
-
-func setupDatabase() {
-	db, err := sql.Open("sqlite3", "./blog.db")
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	createTableSQL := `CREATE TABLE IF NOT EXISTS posts (
-		"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"title" TEXT,
-		"content" TEXT
-	);`
-
-	_, err = db.Exec(createTableSQL)
-	if err != nil {
-		panic(err)
-	}
-}
-
-
-func viewPosts(w http.ResponseWriter, r *http.Request) {
+func ViewPosts(w http.ResponseWriter, r *http.Request) {
 	// クエリパラメータからメッセージを取得
 	message := r.URL.Query().Get("message")
 
-    db, err := sql.Open("sqlite3", "./blog.db")
+    db, err := sql.Open("sqlite3", "db/blog.db")
     if err != nil {
         http.Error(w, "Database error", http.StatusInternalServerError)
         return
@@ -99,7 +77,7 @@ func viewPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func submitPost(w http.ResponseWriter, r *http.Request) {
+func SubmitPost(w http.ResponseWriter, r *http.Request) {
 	title := r.PostFormValue("title")
 	content := r.PostFormValue("content")
 
@@ -126,7 +104,7 @@ func submitPost(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func uploadForm(w http.ResponseWriter, r *http.Request) {
+func UploadForm(w http.ResponseWriter, r *http.Request) {
 	// ベーステンプレートを読み込み
 	tmpl, err := template.ParseFiles("templates/base.html", "templates/upload_form.html")
 	if err != nil {
@@ -142,7 +120,7 @@ func uploadForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func uploadFile(w http.ResponseWriter, r *http.Request) {
+func UploadFile(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(10 << 20) // 10MBのファイルまでを処理
 
 	file, handler, err := r.FormFile("file")
