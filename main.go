@@ -13,6 +13,8 @@ func main() {
 	http.HandleFunc("/", api.UploadForm)
 	http.HandleFunc("/view", api.ViewPosts)
 	http.HandleFunc("/submit-post", api.SubmitPost)
+    http.HandleFunc("/edit-post", api.EditPost)
+    http.HandleFunc("/update-post", api.UpdatePost)
 	fmt.Println("サーバーを起動しています...")
 	http.ListenAndServe(":8080", nil)
 }

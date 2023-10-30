@@ -10,10 +10,79 @@ import (
 	 _ "github.com/mattn/go-sqlite3"
 )
 
-
 func ViewPosts(w http.ResponseWriter, r *http.Request) {
 	// クエリパラメータからメッセージを取得
 	message := r.URL.Query().Get("message")
+
+	db, err := sql.Open("sqlite3", "db/blog.db")
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	// メッセージを表示
+	if message != "" {
+		fmt.Fprintf(w, "<p>%s</p>", message)
+	}
+
+	rows, err := db.Query("SELECT id, title, content FROM posts")
+	if err != nil {
+		http.Error(w, "Failed to retrieve posts", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var posts []struct {
+		Id      int
+		Title   string
+		Content string
+	}
+	for rows.Next() {
+		var id int
+		var title string
+		var content string
+		err = rows.Scan(&id, &title, &content)
+		if err != nil {
+			http.Error(w, "Failed to read post", http.StatusInternalServerError)
+			return
+		}
+		posts = append(posts, struct {
+			Id      int
+			Title   string
+			Content string
+		}{Id: id, Title: title, Content: content})
+	}
+
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/view_posts.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Title string
+		Posts []struct {
+			Id      int
+			Title   string
+			Content string
+		}
+	}{
+		Title: "ブログ投稿一覧",
+		Posts: posts,
+	}
+
+	err = tmpl.ExecuteTemplate(w, "base", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func UpdatePost(w http.ResponseWriter, r *http.Request) {
+    id := r.PostFormValue("id")
+    title := r.PostFormValue("title")
+    content := r.PostFormValue("content")
 
     db, err := sql.Open("sqlite3", "db/blog.db")
     if err != nil {
@@ -22,58 +91,13 @@ func ViewPosts(w http.ResponseWriter, r *http.Request) {
     }
     defer db.Close()
 
-	// メッセージを表示
-	if message != "" {
-		fmt.Fprintf(w, "<p>%s</p>", message)
-	}
-
-    rows, err := db.Query("SELECT title, content FROM posts")
+    _, err = db.Exec("UPDATE posts SET title=?, content=? WHERE id=?", title, content, id)
     if err != nil {
-        http.Error(w, "Failed to retrieve posts", http.StatusInternalServerError)
-        return
-    }
-    defer rows.Close()
-
-    var posts []struct {
-        Title   string
-        Content string
-    }
-    for rows.Next() {
-        var title string
-        var content string
-        err = rows.Scan(&title, &content)
-        if err != nil {
-            http.Error(w, "Failed to read post", http.StatusInternalServerError)
-            return
-        }
-        posts = append(posts, struct {
-            Title   string
-            Content string
-        }{Title: title, Content: content})
-    }
-
-    tmpl, err := template.ParseFiles("templates/base.html", "templates/view_posts.html")
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        http.Error(w, "Failed to update the post", http.StatusInternalServerError)
         return
     }
 
-    data := struct {
-        Title string
-        Posts []struct {
-            Title   string
-            Content string
-        }
-    }{
-        Title: "ブログ投稿一覧",
-        Posts: posts,
-    }
-
-    err = tmpl.ExecuteTemplate(w, "base", data)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+    http.Redirect(w, r, "/view", http.StatusSeeOther)
 }
 
 
@@ -148,6 +172,49 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "ファイル %s がアップロードされました。", handler.Filename)
+}
+
+
+
+func EditPost(w http.ResponseWriter, r *http.Request) {
+    id := r.URL.Query().Get("id")
+    if id == "" {
+        http.Error(w, "ID is required", http.StatusBadRequest)
+        return
+    }
+
+    db, err := sql.Open("sqlite3", "db/blog.db")  // パスを修正
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        fmt.Println("Database error:", err)  // エラーの詳細をログに出力
+        return
+    }
+    defer db.Close()
+
+    row := db.QueryRow("SELECT id, title, content FROM posts WHERE id=?", id)
+
+    var post struct {
+        ID      int
+        Title   string
+        Content string
+    }
+    err = row.Scan(&post.ID, &post.Title, &post.Content)
+    if err != nil {
+        http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+        fmt.Println("Row scan error:", err)  // エラーの詳細をログに出力
+        return
+    }
+
+    tmpl, err := template.ParseFiles("templates/base.html", "templates/edit_post.html")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        fmt.Println("Template parse error:", err)  // エラーの詳細をログに出力
+        return
+    }
+
+    tmpl.ExecuteTemplate(w, "base", map[string]interface{}{
+        "Post": post,
+    })
 }
 
 

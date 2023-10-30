@@ -1,0 +1,18 @@
+{{ define "content" }}
+<h2>ブログを編集</h2>
+<form action="/update-post" method="post">
+    <input type="hidden" name="id" value="{{.Post.ID}}">
+    <div>
+        <label for="title">タイトル:</label>
+        <input type="text" id="title" name="title" value="{{.Post.Title}}">
+    </div>
+    <div>
+        <label for="content">内容:</label>
+        <textarea id="content" name="content">{{.Post.Content}}</textarea>
+    </div>
+    <div>
+        <input type="submit" value="更新">
+    </div>
+</form>
+{{ end }}
+
